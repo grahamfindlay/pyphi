@@ -23,6 +23,7 @@ from .node import generate_nodes
 from .partition import (bipartition, directed_bipartition,
                         directed_tripartition, k_partitions, partitions)
 from .tpm import condition_tpm, marginalize_out
+from .utils import powerset
 
 
 class Subsystem:
@@ -938,6 +939,47 @@ def all_partitions(mechanism, purview):
                         continue
 
                     yield KPartition(*parts)
+
+
+def asymmetric_partitions(mechanism, purview, direction):
+    '''Yields all asymmetric partitions of a mechanism and purview. The set of
+    allowable partitions depends on the direction of the cuts (PAST or FUTURE).
+
+    In the FUTURE direction, every purview element must be cut from at least
+    one mechanism element. In the PAST direction, every mechanism element must
+    be cut from at least one purview element. This asymmetry reflects an
+    asymmetry in how full cause and effect reperotires are factored into (or
+    recovered from) individual node TPMs(see :class:`~pyphi.models.Node`).
+
+    Args:
+        mechanism (tuple[int]): A mechanism.
+        purview (tuple[int]): A purview.
+
+    Yields:
+        KPartition: A partition of this mechanism and purview into ``K`` parts,
+        where ``K`` is the number of purview elements in the FUTURE, and the
+        number of mechanism elements in the PAST.
+    '''
+    if direction == Direction.PAST:
+        inputs = purview
+        outputs = mechanism
+        def parts(input_partition):
+            return [Part((m,), p) for m, p in zip(mechanism, input_partition)]
+    elif direction == Direction.FUTURE:
+        inputs = mechanism
+        outputs = purview
+        def parts(input_partition):
+            return [Part(m, (p,)) for m, p in zip(input_partition, purview)]
+    else:
+        validate.direction(direction)
+
+    # Get all possible sets of input elements where at least one element is
+    # missing (i.e. cut) from that part.
+    valid_input_parts = itertools.islice(powerset(inputs), 2 ** len(inputs) - 1)
+    # Get all valid partitions of the input elements into K parts.
+    input_partitions = itertools.product(valid_input_parts, repeat=len(outputs))
+    for input_partition in input_partitions:
+        yield KPartition(*parts(input_partition))
 
 
 def emd(direction, d1, d2):
