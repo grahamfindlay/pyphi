@@ -413,13 +413,21 @@ class Subsystem:
         '''
         return self._unconstrained_repertoire(Direction.FUTURE, purview)
 
-    def partitioned_repertoire(self, direction, partition):
-        '''Compute the repertoire of a partitioned mechanism and purview.'''
+    def partitioned_repertoire(self, direction, partition, purview=False):
+        '''Compute the repertoire of a partitioned mechanism and purview.
+
+        If the purview cannot be inferred from the partition, then it must be
+        provided as the last argument to ensure that the partitioned and
+        unpartitioned repertoires end up being the same size.'''
         repertoires = [
             self._repertoire(direction, part.mechanism, part.purview)
             for part in partition
         ]
-        return functools.reduce(np.multiply, repertoires)
+        repertoire = functools.reduce(np.multiply, repertoires)
+        if purview:
+            repertoire = self.expand_repertoire(direction, repertoire, purview)
+
+        return repertoire
 
     def expand_repertoire(self, direction, repertoire, new_purview=None):
         '''Distribute an effect repertoire over a larger purview.
@@ -518,7 +526,8 @@ class Subsystem:
                                                         purview)
 
         partitioned_repertoire = self.partitioned_repertoire(direction,
-                                                             partition)
+                                                             partition,
+                                                             purview=purview)
 
         phi = measure(direction, unpartitioned_repertoire,
                       partitioned_repertoire)
