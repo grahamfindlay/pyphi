@@ -281,7 +281,7 @@ class Context:
         alpha_min = float('inf')
         probability = self.probability(direction, mechanism, purview)
 
-        for partition in mip_partitions(mechanism, purview):
+        for partition in mip_partitions(mechanism, purview, direction):
             partitioned_probability = self.partitioned_probability(
                 direction, partition)
 
