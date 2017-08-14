@@ -102,9 +102,16 @@ These settings control the algorithms PyPhi uses.
 
   where the mechanism in the third part is always empty.
 
-  In addition, in the case of a |small_phi|-tie when computing MICE, The
-  ``'TRIPARTITION'`` setting choses the MIP with smallest purview instead of
-  the largest (which is the default).
+  If set to ``ASYM``, the set of allowable partitions depends on whether the
+  partitioning is being done in the ``PAST`` or ``FUTURE`` directions, i.e.
+  whether the partitioning is of a cause or an effect repertoire. For cause
+  repertoires, an allowable partition has ``K`` parts, where ``K`` is the
+  number of mechanism elements, and every mechanism element must be cut from at
+  least one purview element. For effect repertoires, ``K`` is the number of
+  purview elements, and each purview element must be cut from at least mechanism
+  element. When computing MICE using the ``ASYM`` setting, you should break
+  |small_phi| ties by choosing the MIP with the smallest purview, rather than
+  the largest. You can do this by setting ``PICK_SMALLEST_PURVIEW`` to ``True``.
 
   Finally, if set to ``'ALL'``, all possible partitions will be tested.
 

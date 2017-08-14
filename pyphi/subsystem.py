@@ -568,7 +568,7 @@ class Subsystem:
             return _mip(0, None, None)
 
         # Loop over possible MIP partitions
-        for partition in mip_partitions(mechanism, purview):
+        for partition in mip_partitions(mechanism, purview, direction):
             # Find the distance between the unpartitioned and partitioned
             # repertoire.
             phi, partitioned_repertoire = self.evaluate_partition(
@@ -766,18 +766,20 @@ def maximal_mip(mips):
     return max_mip
 
 
-def mip_partitions(mechanism, purview):
+def mip_partitions(mechanism, purview, direction=None):
     '''Return a generator over all MIP partitions, based on the current
     configuration.'''
     validate.partition_type(config.PARTITION_TYPE)
 
-    func = {
-        'BI': mip_bipartitions,
-        'TRI': wedge_partitions,
-        'ALL': all_partitions
-    }[config.PARTITION_TYPE]
-
-    return func(mechanism, purview)
+    if config.PARTITION_TYPE is 'ASYM':
+        return asymmetric_partitions(mechanism, purview, direction)
+    else:
+        func = {
+            'BI': mip_bipartitions,
+            'TRI': wedge_partitions,
+            'ALL': all_partitions,
+        }[config.PARTITION_TYPE]
+        return func(mechanism, purview)
 
 
 def mip_bipartitions(mechanism, purview):
