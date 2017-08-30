@@ -13,8 +13,8 @@ import itertools
 import numpy as np
 
 from . import cache, config, distance, distribution, utils, validate
-from .constants import EMD, ENTROPY_DIFFERENCE, KLD, L1, Direction
-from .distance import entropy_difference, kld, l1
+from .constants import Direction
+from .distance import small_phi_measure as measure
 from .distribution import max_entropy_distribution, repertoire_shape
 from .models import (Bipartition, Concept, Cut, KPartition, Mice, Mip, Part,
                      Tripartition, _null_mip)
@@ -150,13 +150,18 @@ class Subsystem:
 
     @property
     def cut_indices(self):
-        '''tuple[int]: The nodes of this subsystem cut for |big_phi|
+        '''tuple[int]: The nodes of this subsystem to cut for |big_phi|
         computations.
 
         This was added to support ``MacroSubsystem``, which cuts indices other
         than ``node_indices``.
         '''
         return self.node_indices
+
+    @property
+    def cut_mechanisms(self):
+        '''list[tuple[int]]: The mechanisms that are cut in this system.'''
+        return self.cut.all_cut_mechanisms()
 
     @property
     def tpm_size(self):
@@ -310,15 +315,15 @@ class Subsystem:
         # Preallocate the repertoire with the proper shape, so that
         # probabilities are broadcasted appropriately.
         joint = np.ones(repertoire_shape(purview, self.tpm_size))
-        # The cause repertoire is the Kroneker product of the cause repertoires
-        # of the individual nodes.
+        # The cause repertoire is the product of the cause repertoires of the
+        # individual nodes.
         joint *= functools.reduce(
             np.multiply, [self._single_node_cause_repertoire(m, purview)
                           for m in mechanism]
         )
         # The resulting joint distribution is over past states, which are rows
         # in the TPM, so the distribution is a column. In a state-by-node TPM
-        # the columns don't sum to 1, so we have to normalize.
+        # the columns don't sum to 1, so we normalize.
         return distribution.normalize(joint)
 
     # TODO extend to nonbinary nodes
@@ -691,9 +696,8 @@ class Subsystem:
         if not purviews:
             max_mip = _null_mip(direction, mechanism, ())
         else:
-            mips = [self.find_mip(direction, mechanism, purview)
-                    for purview in purviews]
-            max_mip = maximal_mip(mips)
+            max_mip = max(self.find_mip(direction, mechanism, purview)
+                          for purview in purviews)
 
         return Mice(max_mip)
 
@@ -741,8 +745,7 @@ class Subsystem:
         effect = Mice(_null_mip(Direction.FUTURE, (), (), effect_repertoire))
 
         # All together now...
-        return Concept(mechanism=(), phi=0, cause=cause, effect=effect,
-                       subsystem=self)
+        return Concept(mechanism=(), cause=cause, effect=effect, subsystem=self)
 
     def concept(self, mechanism, purviews=False, past_purviews=False,
                 future_purviews=False):
@@ -756,23 +759,11 @@ class Subsystem:
         # Calculate the maximally irreducible effect repertoire.
         effect = self.core_effect(mechanism,
                                   purviews=(future_purviews or purviews))
-        # Get the minimal phi between them.
-        phi = min(cause.phi, effect.phi)
         # NOTE: Make sure to expand the repertoires to the size of the
         # subsystem when calculating concept distance. For now, they must
         # remain un-expanded so the concept doesn't depend on the subsystem.
-        return Concept(mechanism=mechanism, phi=phi, cause=cause,
+        return Concept(mechanism=mechanism, cause=cause,
                        effect=effect, subsystem=self)
-
-
-def maximal_mip(mips):
-    '''Pick the maximal mip out of a collection.'''
-    if config.PICK_SMALLEST_PURVIEW:
-        max_mip = max(mips, key=lambda m: (m.phi, -len(m.purview)))
-    else:
-        max_mip = max(mips)
-
-    return max_mip
 
 
 def mip_partitions(mechanism, purview, direction=None):
@@ -912,6 +903,7 @@ def wedge_partitions(mechanism, purview):
             yielded.add(tripart)
             yield tripart
 
+
 def all_partitions(mechanism, purview):
     '''Returns all possible partitions of a mechanism and purview.
 
@@ -991,62 +983,3 @@ def asymmetric_partitions(mechanism, purview, direction):
     input_partitions = itertools.product(valid_input_parts, repeat=len(outputs))
     for input_partition in input_partitions:
         yield KPartition(*parts(input_partition))
-
-
-def emd(direction, d1, d2):
-    '''Compute the EMD between two repertoires for a given direction.
-
-    The full EMD computation is used for cause repertoires. A fast analytic
-    solution is used for effect repertoires.
-
-    Args:
-        direction (Direction): |PAST| or |FUTURE|.
-        d1 (np.ndarray): The first repertoire.
-        d2 (np.ndarray): The second repertoire.
-
-    Returns:
-        float: The EMD between ``d1`` and ``d2``, rounded to |PRECISION|.
-
-    Raises:
-        ValueError: If ``direction`` is invalid.
-    '''
-    if direction == Direction.PAST:
-        func = distance.hamming_emd
-    elif direction == Direction.FUTURE:
-        func = distance.effect_emd
-    else:
-        # TODO: test that ValueError is raised
-        validate.direction(direction)
-
-    return round(func(d1, d2), config.PRECISION)
-
-
-def measure(direction, d1, d2):
-    '''Compute the distance between two repertoires for the given direction.
-
-    Args:
-        direction (Direction): |PAST| or |FUTURE|.
-        d1 (np.ndarray): The first repertoire.
-        d2 (np.ndarray): The second repertoire.
-
-    Returns:
-        float: The distance between ``d1`` and ``d2``, rounded to |PRECISION|.
-    '''
-
-    if config.MEASURE == EMD:
-        dist = emd(direction, d1, d2)
-
-    elif config.MEASURE == KLD:
-        dist = kld(d1, d2)
-
-    elif config.MEASURE == L1:
-        dist = l1(d1, d2)
-
-    elif config.MEASURE == ENTROPY_DIFFERENCE:
-        dist = entropy_difference(d1, d2)
-
-    else:
-        validate.measure(config.MEASURE)
-
-    # TODO do we actually need to round here?
-    return round(dist, config.PRECISION)
