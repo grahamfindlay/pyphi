@@ -771,7 +771,7 @@ def mip_partitions(mechanism, purview, direction=None):
     configuration.'''
     validate.partition_type(config.PARTITION_TYPE)
 
-    if config.PARTITION_TYPE is 'ASYM':
+    if config.PARTITION_TYPE == 'ASYM':
         return asymmetric_partitions(mechanism, purview, direction)
     else:
         func = {
