@@ -65,7 +65,7 @@ def evaluate_cut(uncut_subsystem, cut, unpartitioned_constellation):
 # pylint: disable=unused-argument,arguments-differ
 class FindMip(MapReduce):
     '''Computation engine for finding the minimal |BigMip|.'''
-    description = 'Evaluating \u03D5 cuts'
+    description = 'Evaluating {} cuts'.format(fmt.BIG_PHI)
 
     def empty_result(self, subsystem, unpartitioned_constellation):
         '''Begin with a mip with infinite |big_phi|; all actual mips will have

@@ -23,7 +23,7 @@ from .node import generate_nodes
 from .partition import (bipartition, directed_bipartition,
                         directed_tripartition, k_partitions, partitions)
 from .tpm import condition_tpm, marginalize_out
-from .utils import powerset
+from .utils import powerset, combs
 
 
 class Subsystem:
@@ -974,9 +974,13 @@ def asymmetric_partitions(mechanism, purview, direction):
     else:
         validate.direction(direction)
 
-    # Get all possible sets of input elements where at least one element is
-    # missing (i.e. cut) from that part.
-    valid_input_parts = itertools.islice(powerset(inputs), 2 ** len(inputs) - 1)
+    # Optimization: Rather than try all valid cuts, we prune out all those that
+    # are redundant (give small phi <= some other guaranteed cut). We get the
+    # largest possible (most constraining) subsets of input elements, under the
+    # constraint that at least one element is missing (i.e. cut) from each
+    # subset. For N inputs, this is all N-1 combinations of those inputs.
+    valid_input_parts = [tuple(x) for x in combs(inputs, len(inputs) - 1)]
+    valid_input_parts = [()] if not valid_input_parts else valid_input_parts
     # Get all valid partitions of the input elements into K parts.
     input_partitions = itertools.product(valid_input_parts, repeat=len(outputs))
     for input_partition in input_partitions:

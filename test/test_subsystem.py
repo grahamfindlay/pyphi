@@ -157,30 +157,43 @@ def test_wedge_partitions():
     ])
 
 
-def test_asymmetric_partitions():
+def test_asymmetric_partitions_multi_element_purview():
+    '''Test that the shortlisted partitions are correct.'''
     mechanism = (0, 1)
     purview = (2, 3)
     answer_past = set([
-        KPartition(Part((0,), ()), Part((1,), ())),
-        KPartition(Part((0,), ()), Part((1,), (2,))),
-        KPartition(Part((0,), ()), Part((1,), (3,))),
-        KPartition(Part((0,), (2,)), Part((1,), ())),
         KPartition(Part((0,), (2,)), Part((1,), (2,))),
         KPartition(Part((0,), (2,)), Part((1,), (3,))),
-        KPartition(Part((0,), (3,)), Part((1,), ())),
         KPartition(Part((0,), (3,)), Part((1,), (2,))),
         KPartition(Part((0,), (3,)), Part((1,), (3,)))
     ])
     answer_future = set([
-        KPartition(Part((), (2,)), Part((), (3,))),
-        KPartition(Part((), (2,)), Part((0,), (3,))),
-        KPartition(Part((), (2,)), Part((1,), (3,))),
-        KPartition(Part((0,), (2,)), Part((), (3,))),
         KPartition(Part((0,), (2,)), Part((0,), (3,))),
         KPartition(Part((0,), (2,)), Part((1,), (3,))),
-        KPartition(Part((1,), (2,)), Part((), (3,))),
         KPartition(Part((1,), (2,)), Part((0,), (3,))),
         KPartition(Part((1,), (2,)), Part((1,), (3,)))
+    ])
+
+    computed_past = set(asymmetric_partitions(mechanism, purview,
+                                              Direction.PAST))
+    computed_future = set(asymmetric_partitions(mechanism, purview,
+                                                Direction.FUTURE))
+
+    assert computed_past == answer_past
+    assert computed_future == answer_future
+
+
+def test_asymmetric_partitions_single_element_purview():
+    '''Test corner case of single-element purview, where a null denomonatior
+    should be produced.'''
+    mechanism = (0, 1)
+    purview = (2,)
+    answer_past = set([
+        KPartition(Part((0,), ()), Part((1,), ()))
+    ])
+    answer_future = set([
+        KPartition(Part((0,), (2,))),
+        KPartition(Part((1,), (2,)))
     ])
 
     computed_past = set(asymmetric_partitions(mechanism, purview,
