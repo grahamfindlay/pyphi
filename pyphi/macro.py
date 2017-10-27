@@ -142,7 +142,8 @@ class MacroSubsystem(Subsystem):
     # abstract the logic into a discrete, disconnected transformation.
 
     def __init__(self, network, state, nodes, cut=None, mice_cache=None,
-                 time_scale=1, blackbox=None, coarse_grain=None):
+                 time_scale=1, blackbox=None, coarse_grain=None,
+                 check_independence=True):
         # Ensure indices are not a `range`
         node_indices = network.parse_node_indices(nodes)
 
@@ -154,6 +155,8 @@ class MacroSubsystem(Subsystem):
         self._coarse_grain = coarse_grain
 
         super().__init__(network, state, node_indices, cut, mice_cache)
+
+        self._check_independence = check_independence and (not self.is_cut)
 
         validate.blackbox_and_coarse_grain(blackbox, coarse_grain)
 
@@ -187,7 +190,8 @@ class MacroSubsystem(Subsystem):
         if coarse_grain is not None:
             validate.coarse_grain(coarse_grain)
             coarse_grain = coarse_grain.reindex()
-            system = self._coarsegrain_space(coarse_grain, self.is_cut, system)
+            system = self._coarsegrain_space(coarse_grain,
+                                             self._check_independence, system)
 
         system.apply(self)
 
@@ -285,11 +289,11 @@ class MacroSubsystem(Subsystem):
         return SystemAttrs(tpm, cm, node_indices, state)
 
     @staticmethod
-    def _coarsegrain_space(coarse_grain, is_cut, system):
+    def _coarsegrain_space(coarse_grain, check_independence, system):
         '''Spatially coarse-grain the TPM and CM.'''
 
         tpm = coarse_grain.macro_tpm(
-            system.tpm, check_independence=(not is_cut))
+            system.tpm, check_independence=check_independence)
 
         node_indices = coarse_grain.macro_indices
         state = coarse_grain.macro_state(system.state)
@@ -690,7 +694,10 @@ def all_partitions(indices):
     n = len(indices)
     partitions = _partitions_list(n)
     if n > 0:
-        partitions[-1] = [list(range(n))]
+        if n == 2:
+            partitions.append([list(range(n))])
+        else:
+            partitions[-1] = [list(range(n))]
 
     for partition in partitions:
         yield tuple(tuple(indices[i] for i in part)
